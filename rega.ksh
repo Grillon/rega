@@ -14,6 +14,7 @@ extractionH=xfrsGLOBAL.asc
 extractionM=xfrdGLOBAL.asc
 extraction=${extractionH}
 index=index_metrique.txt
+logglob=/var/opt/perf/datafiles/logglob
 refIndex=/var/opt/perf/reptall
 myrept=myrept
 
@@ -26,8 +27,34 @@ myrept=myrept
 	exit 251
 	}
 
-while getopts "r:k:hdg" opt;do
+while getopts "r:k:hdgp:" opt;do
 	case ${opt} in
+		p)#profil
+		case ${OPTARG} in
+		cpuB)colonnes="GBL_CPU_TOTAL_UTIL|GBL_PRI_QUEUE|GBL_RUN_QUEUE"
+		;;
+		memB)
+		colonnes="GBL_MEM_UTIL|GBL_MEM_QUEUE|GBL_MEM_PAGE_REQUEST_RATE|GBL_MEM_PAGE_REQUEST|GBL_MEM_PAGEOUT_RATE|GBL_MEM_PAGEOUT"
+		;;
+		diskB)
+		colonnes="GBL_DISK_UTIL_PEAK|GBL_BLOCKED_IO_QUEUE"
+		;;
+		netU)
+		colonnes="GBL_NUM_NETWORK|GBL_NET_ERROR_1_MIN_RATE|GBL_NET_COLLISION_1_MIN_RATE|GBL_NET_IN_ERROR_PCT|GBL_NET_OUT_ERROR_PCT|GBL_NET_OUTQUEUE|GBL_NET_IN_PACKET_RATE|GBL_NET_IN_PACKET|GBL_NET_OUT_PACKET_RATE|GBL_NET_OUT_PACKET|GBL_NET_PACKET_RATE|GBL_NET_COLLISION_PCT|GBL_NETWORK_SUBSYSTEM_QUEUE"
+		;;
+		queue)
+		colonnes="GBL_NET_OUTQUEUE|GBL_PRI_QUEUE|GBL_RUN_QUEUE|GBL_DISK_SUBSYSTEM_QUEUE|GBL_MEM_QUEUE|GBL_IPC_SUBSYSTEM_QUEUE|GBL_NETWORK_SUBSYSTEM_QUEUE|GBL_SLEEP_QUEUE|GBL_QUEUE_HISTOGRAM"
+		;;
+		allBQ)
+		colonnes="GBL_NET_OUTQUEUE|GBL_PRI_QUEUE|GBL_RUN_QUEUE|GBL_DISK_SUBSYSTEM_QUEUE|GBL_MEM_QUEUE|GBL_IPC_SUBSYSTEM_QUEUE|GBL_NETWORK_SUBSYSTEM_QUEUE|GBL_SLEEP_QUEUE|GBL_QUEUE_HISTOGRAM"
+		colonnes=$colonnes"|GBL_DISK_UTIL_PEAK|GBL_BLOCKED_IO_QUEUE"
+		colonnes=$colonnes"|GBL_MEM_UTIL|GBL_MEM_QUEUE|GBL_MEM_PAGE_REQUEST_RATE|GBL_MEM_PAGE_REQUEST|GBL_MEM_PAGEOUT_RATE|GBL_MEM_PAGEOUT"
+		colonnes=$colonnes"|GBL_CPU_TOTAL_UTIL|GBL_PRI_QUEUE|GBL_RUN_QUEUE"
+		;;
+		esac
+		colonnes=$(egrep "$colonnes" index_metrique.txt | awk -F\| '{if (!mesArg) {mesArg=$1} else {mesArg=mesArg","$1;}}END{print mesArg}')
+		colonnes=3,4,${colonnes}
+		;;
 		r)#colonnes="${OPTARG}";;	
 			colonnes=$(echo ",${OPTARG}," | sed -e 's/,[3-4],/,/g' -e 's/^,//' -e 's/,$//')
 			colonnes=3,4,${colonnes};;
@@ -38,7 +65,8 @@ while getopts "r:k:hdg" opt;do
 		  echo "colonnes : nbr separes par des virgules"
 		  echo "-d : vue tt les 5 mn"
 		  echo "cle : mot cle, ou un nombre"
-
+		  echo "-----profiles----- : B pour bottleneck, U pour USAGE et Q pour Queue"
+		  echo "-p : cpuB|memB|diskB|queue|allBQ|netU"
 		  echo "-g : gen des extractions"
 		   exit 251;;
 	esac	
@@ -77,7 +105,7 @@ awk '
 	}' ${myrept}>${index}
 fi
 if [ ! -r "${extraction}" ];then 
-	extract -xp -gG -l /var/opt/perf/datafiles/logglob -r ${myrept}
+	extract -xp -gG -l ${logglob} -r ${myrept}
 	[ $? -gt 0 ] && echo "extraction impossible"
 fi
 if [ "${colonnes}" != "" ];then
